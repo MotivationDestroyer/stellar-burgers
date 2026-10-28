@@ -1,27 +1,53 @@
 import { AppHeader } from '@components';
-import { ConstructorPage } from '@pages';
-import { Preloader } from '@ui';
-import { Routes, Route } from 'react-router-dom';
+import {
+  ConstructorPage,
+  Feed,
+  Login,
+  Register,
+  ForgotPassword,
+  ResetPassword,
+  Profile,
+  ProfileOrders,
+  NotFound404,
+} from '@pages';
+import { ModalUI, Preloader } from '@ui';
+import { useEffect } from 'react';
+import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+
+import { IngredientDetails } from '@components/ingredient-details';
+import { OrderInfo } from '@components/order-info';
+
+import { fetchIngredients } from '../../services/slices/ingredientsSlice';
+import { useDispatch, useSelector } from '../../services/store';
 
 import type { AppContentProps } from './type';
-import type { TIngredient } from '@utils-types';
+import type { Location } from 'react-router-dom';
 
 import '../../index.css';
 
 import styles from './app.module.css';
 
+type LocationState = {
+  background?: Location;
+};
+
 const App = (): React.JSX.Element => {
-  const ingredients: TIngredient[] = [];
-  const isIngredientsLoading = false;
-  const ingredientsError = null;
+  const dispatch = useDispatch();
+
+  const { isLoading: isIngredientsLoading, error: ingredientsError } = useSelector(
+    (state) => state.ingredients
+  );
+
+  useEffect(() => {
+    void dispatch(fetchIngredients());
+  }, [dispatch]);
 
   return (
     <div className={styles.app}>
       <AppHeader />
       <AppContent
-        ingredients={ingredients}
         isLoading={isIngredientsLoading}
-        error={ingredientsError}
+        error={ingredientsError ? new Error(ingredientsError) : null}
       />
     </div>
   );
@@ -29,13 +55,16 @@ const App = (): React.JSX.Element => {
 
 export default App;
 
-/* Маршруты показываются только когда ингредиенты загружены: без них не
-   отрисовать ни конструктор, ни состав заказа. */
-const AppContent = ({
-  ingredients,
-  isLoading,
-  error,
-}: AppContentProps): React.JSX.Element => {
+const AppContent = ({ isLoading, error }: AppContentProps): React.JSX.Element => {
+  const location = useLocation();
+  const locationState = location.state as LocationState | null;
+  const background = locationState?.background;
+  const navigate = useNavigate();
+
+  const handleClose = (): void => {
+    void navigate(-1);
+  };
+
   if (isLoading) {
     return <Preloader />;
   }
@@ -49,21 +78,55 @@ const AppContent = ({
     );
   }
 
-  if (!ingredients.length) {
-    return (
-      <p className={`${styles.message} text text_type_main-medium`}>Нет ингредиентов</p>
-    );
-  }
-
-  return <RouteComponent />;
-};
-
-const RouteComponent = (): React.JSX.Element => {
   return (
     <>
-      <Routes>
+      <Routes location={background ?? location}>
         <Route path="/" element={<ConstructorPage />} />
+        <Route path="/feed" element={<Feed />} />
+
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/profile/orders" element={<ProfileOrders />} />
+
+        <Route path="/ingredients/:id" element={<IngredientDetails />} />
+        <Route path="/feed/:number" element={<OrderInfo />} />
+        <Route path="/profile/orders/:number" element={<OrderInfo />} />
+
+        <Route path="*" element={<NotFound404 />} />
       </Routes>
+
+      {background && (
+        <Routes>
+          <Route
+            path="/ingredients/:id"
+            element={
+              <ModalUI title="Детали ингредиента" onClose={handleClose}>
+                <IngredientDetails />
+              </ModalUI>
+            }
+          />
+          <Route
+            path="/feed/:number"
+            element={
+              <ModalUI title="Информация о заказе" onClose={handleClose}>
+                <OrderInfo />
+              </ModalUI>
+            }
+          />
+          <Route
+            path="/profile/orders/:number"
+            element={
+              <ModalUI title="Информация о заказе" onClose={handleClose}>
+                <OrderInfo />
+              </ModalUI>
+            }
+          />
+        </Routes>
+      )}
     </>
   );
 };
