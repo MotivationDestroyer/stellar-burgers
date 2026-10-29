@@ -1,5 +1,5 @@
 import { BurgerIngredientsUI } from '@ui';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { useSelector } from '../../services/store';
 
@@ -13,10 +13,6 @@ export const BurgerIngredients = (): React.JSX.Element => {
   const titleBunRef = useRef<HTMLHeadingElement>(null);
   const titleMainRef = useRef<HTMLHeadingElement>(null);
   const titleSaucesRef = useRef<HTMLHeadingElement>(null);
-
-  const bunsRef = useCallback((_node?: Element | null) => {}, []);
-  const mainsRef = useCallback((_node?: Element | null) => {}, []);
-  const saucesRef = useCallback((_node?: Element | null) => {}, []);
 
   const buns = ingredients.filter((item) => item.type === 'bun');
   const mains = ingredients.filter((item) => item.type === 'main');
@@ -49,7 +45,10 @@ export const BurgerIngredients = (): React.JSX.Element => {
       (entries) => {
         const visible = entries
           .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+          .sort(
+            (a: IntersectionObserverEntry, b: IntersectionObserverEntry): number =>
+              a.boundingClientRect.top - b.boundingClientRect.top
+          );
 
         if (visible.length > 0) {
           const heading = headings.find((item) => item.element === visible[0].target);
@@ -82,9 +81,6 @@ export const BurgerIngredients = (): React.JSX.Element => {
       titleBunRef={titleBunRef}
       titleMainRef={titleMainRef}
       titleSaucesRef={titleSaucesRef}
-      bunsRef={bunsRef}
-      mainsRef={mainsRef}
-      saucesRef={saucesRef}
       onTabClick={onTabClick}
     />
   );

@@ -24,7 +24,11 @@ const initialState: TConstructorStore = {
 
 export const createOrder = createAsyncThunk(
   'burgerConstructor/createOrder',
-  async (ingredients: string[]) => orderBurgerApi(ingredients)
+  async (ingredients: string[]) => orderBurgerApi(ingredients),
+  {
+    condition: (_, { getState }) =>
+      (getState() as { user: { isAuth: boolean } }).user.isAuth,
+  }
 );
 
 const constructorSlice = createSlice({
