@@ -1,18 +1,39 @@
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { test, expect } from '@playwright/test';
 
+import type { TIngredient } from '../src/utils/types';
+
+const ingredientsHarPath = resolve(process.cwd(), 'tests/hars/ingredients.har');
+
+// Достаём ингредиент из HAR, чтобы сравнивать данные в окне с данными ответа сервера
+const getIngredientFromHar = (name: string): TIngredient => {
+  const har = JSON.parse(readFileSync(ingredientsHarPath, 'utf-8'));
+  const body = JSON.parse(har.log.entries[0].response.content.text);
+  const ingredient = (body.data as TIngredient[]).find((item) => item.name === name);
+
+  if (!ingredient) {
+    throw new Error(`Ингредиент «${name}» не найден в HAR`);
+  }
+
+  return ingredient;
+};
+
 test.describe('Модальное окно ингредиента', () => {
   test.beforeEach(async ({ page }) => {
-    await page.routeFromHAR(
-      resolve(process.cwd(), 'tests/hars/ingredients.har'),
-      { url: '**/api/ingredients' }
-    );
+    await page.routeFromHAR(ingredientsHarPath, { url: '**/api/ingredients' });
 
     await page.goto('/');
   });
 
   test('открытие и закрытие модального окна ингредиента', async ({ page }) => {
+    const modal = page.locator('#modals');
+    const modalTitle = modal.getByRole('heading', { name: 'Детали ингредиента' });
+
+    // Проверяем, что до клика модального окна нет
+    await expect(modalTitle).not.toBeVisible();
+
     // Выбираем булку в списке ингредиентов
     const ingredient = page
       .getByRole('link')
@@ -22,30 +43,45 @@ test.describe('Модальное окно ингредиента', () => {
     await ingredient.click();
 
     // Проверяем открытие модального окна
-    await expect(
-      page.getByRole('heading', { name: 'Детали ингредиента' })
-    ).toBeVisible();
-
-    // Проверяем название ингредиента
-    await expect(
-      page.getByRole('heading', {
-        name: 'Краторная булка N-200i',
-        exact: true
-      })
-    ).toBeVisible();
-
-    // Проверяем отображение пищевой ценности
-    await expect(page.getByText('Калории, ккал')).toBeVisible();
-    await expect(page.getByText('Белки, г')).toBeVisible();
-    await expect(page.getByText('Жиры, г')).toBeVisible();
-    await expect(page.getByText('Углеводы, г')).toBeVisible();
+    await expect(modalTitle).toBeVisible();
 
     // Закрываем модальное окно
-    await page.getByRole('button', { name: 'Закрыть' }).click();
+    await modal.getByRole('button', { name: 'Закрыть' }).click();
 
     // Проверяем, что окно закрылось
-    await expect(
-      page.getByRole('heading', { name: 'Детали ингредиента' })
-    ).not.toBeVisible();
+    await expect(modalTitle).not.toBeVisible();
+  });
+
+  test('в окне показаны данные выбранного ингредиента', async ({ page }) => {
+    // Берём ингредиент не с первой позиции списка
+    const name = 'Биокотлета из марсианской Магнолии';
+    const { calories, proteins, fat, carbohydrates } = getIngredientFromHar(name);
+    const modal = page.locator('#modals');
+    const modalTitle = modal.getByRole('heading', { name: 'Детали ингредиента' });
+
+    // Проверяем, что до клика модального окна нет
+    await expect(modalTitle).not.toBeVisible();
+
+    await page.getByRole('link').filter({ hasText: name }).first().click();
+
+    await expect(modalTitle).toBeVisible();
+
+    // Проверяем название ингредиента внутри окна
+    await expect(modal.getByRole('heading', { name, exact: true })).toBeVisible();
+
+    // Проверяем значения пищевой ценности внутри окна
+    const nutritionalValues = [
+      { label: 'Калории, ккал', value: calories },
+      { label: 'Белки, г', value: proteins },
+      { label: 'Жиры, г', value: fat },
+      { label: 'Углеводы, г', value: carbohydrates },
+    ];
+
+    for (const { label, value } of nutritionalValues) {
+      const item = modal.getByRole('listitem').filter({ hasText: label });
+
+      await expect(item.locator('p').first()).toHaveText(label);
+      await expect(item.locator('p').nth(1)).toHaveText(String(value));
+    }
   });
 });
