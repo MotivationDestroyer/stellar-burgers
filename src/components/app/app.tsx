@@ -1,4 +1,4 @@
-import { AppHeader, ProtectedRoute } from '@components';
+import { AppHeader, Modal, ProtectedRoute } from '@components';
 import {
   ConstructorPage,
   Feed,
@@ -10,7 +10,7 @@ import {
   ProfileOrders,
   NotFound404,
 } from '@pages';
-import { ModalUI, Preloader } from '@ui';
+import { Preloader } from '@ui';
 import { useEffect } from 'react';
 import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 
@@ -145,26 +145,26 @@ const AppContent = ({ isLoading, error }: AppContentProps): React.JSX.Element =>
           <Route
             path="/ingredients/:id"
             element={
-              <ModalUI title="Детали ингредиента" onClose={handleClose}>
+              <Modal title="Детали ингредиента" onClose={handleClose}>
                 <IngredientDetails />
-              </ModalUI>
+              </Modal>
             }
           />
           <Route
             path="/feed/:number"
             element={
-              <ModalUI title="Информация о заказе" onClose={handleClose}>
+              <Modal title="Информация о заказе" onClose={handleClose}>
                 <OrderInfo />
-              </ModalUI>
+              </Modal>
             }
           />
           <Route
             path="/profile/orders/:number"
             element={
               <ProtectedRoute>
-                <ModalUI title="Информация о заказе" onClose={handleClose}>
+                <Modal title="Информация о заказе" onClose={handleClose}>
                   <OrderInfo />
-                </ModalUI>
+                </Modal>
               </ProtectedRoute>
             }
           />
